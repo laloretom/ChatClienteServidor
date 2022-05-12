@@ -23,7 +23,7 @@ public abstract class Colega {
                         System.out.println(mesgIn);
                     }
                 } catch (Exception e) {
-                    System.out.print("Adios");
+                    System.out.print("[NOTIFY]: BYE");
                 }
             }
         });
@@ -32,7 +32,7 @@ public abstract class Colega {
 
     public void EnviarDatos(String msg) {
         try {
-            buffSalida.writeUTF("<" + nombre + "> " + msg);
+            buffSalida.writeUTF("[" + nombre + "]: " + msg);
             buffSalida.flush();
         } catch (Exception e) {
         };
@@ -42,11 +42,11 @@ public abstract class Colega {
         try {
             String line = "";
             while (!line.equals("DISCONNECT")) {
+                System.out.println("");
                 System.out.print("["+nombre+"]: ");
                 line = teclado.readLine();
                 buffSalida.writeUTF(line);
                 buffSalida.flush();
-
             }
         } catch (Exception e) {
         }

@@ -3,7 +3,6 @@ import java.io.DataOutputStream;
 import java.net.Socket;
 import java.util.Vector;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
@@ -17,15 +16,14 @@ public class Conexion extends Thread {
     
     public static Vector<Conexion> clientesConectados = new Vector();
     public static List<Topic> topics = new ArrayList<Topic>();
-    List<Conexion> list = new ArrayList<Conexion>();
-    
+
 
     public Conexion(Socket cliente, DataInputStream buffEntrada, DataOutputStream buffSalida, String username) 
     {
         cliente1 = cliente;
         this.buffEntrada = buffEntrada;
         this.buffSalida = buffSalida;
-        clientesConectados.add(this);
+        //clientesConectados.add(this);
         this.username = username;
 
         Topic brTopic = topics.stream().
@@ -51,6 +49,9 @@ public class Conexion extends Thread {
         
         brTopic.getUserList().add(this);
         usrTopic.getUserList().add(this);
+
+        brTopic.Publish("[NOTIFY]: ["+this.username+"] CONNECTED", this);
+
     }
 
     @Override
@@ -58,11 +59,11 @@ public class Conexion extends Thread {
         try {
 
             Boolean done = true;
-            System.out.println("Num: " + clientesConectados.size());
-            
-            while (done) 
+
+            while (done)
             {
                 String mensaje = buffEntrada.readUTF();
+                //Patron para entrada (SEND "MENSAJE" "Usuario Destino") o (SEND 'MENSAJE' 'Usuario Destino')
                 Pattern regex = Pattern.compile("[^\\s\"']+|\"([^\"]*)\"|'([^']*)'");
                 Matcher regexMatcher = regex.matcher(mensaje);
                 ArrayList<String> args = new ArrayList<String>();
@@ -95,12 +96,12 @@ public class Conexion extends Thread {
                                 .findAny()
                                 .orElse(null);
                         if (topic != null) {
-                            System.out.println("Mensaje exitoso a: " + args.get(2));
-                            notificarUsuario(this, "Mensaje exitoso a: " + args.get(2));
-                            topic.Publish(messageBody, this);
+                            System.out.println("[SUCCESS]: SENT TO: " + args.get(2));
+                            notificarUsuario(this, "[SUCCESS]: SENT TO: " + args.get(2));
+                            topic.Publish("BY ["+this.username + "]: "+messageBody, this);
                         } else {
-                            System.out.println("El usario o topic no existe ");
-                            notificarUsuario(this, "el usuario o topic no existe");
+                            System.out.println("[ERROR]: USERNAME DOES NOT EXIST");
+                            notificarUsuario(this, "[ERROR]: USERNAME DOES NOT EXIST");
                         }
                     } else if (args.size() == 2){
                         Topic topic = topics.stream()
@@ -108,31 +109,34 @@ public class Conexion extends Thread {
                                 .findAny()
                                 .orElse(null);
                         if (topic != null) {
-                            System.out.println("Mensaje enviado a BroadCast");
-                            notificarUsuario(this, "El Mensaje fue enviado al BroadCast");
-                            topic.Publish(messageBody, this);
+                            System.out.println("[SUCCESS]: SENT TO BROADCAST BY [" +this.username+"]");
+                            notificarUsuario(this, "[SUCCESS]: SENT TO BROADCAST");
+                            topic.Publish("["+this.username + "] [BROADCAST]: "+messageBody, this);
                         }
                     }
 
                 }else if (args.get(0).equals("LIST"))
                 {
                     String lista = "";
-                    for (Topic topic : topics) {
-                        lista += "Usuarios: " + topic.topicTitle + "\n";
+                    for (Conexion cliente : clientesConectados) {
+                        lista += "Usuarios: " + cliente.username + "\n";
                     }
-                    notificarUsuario(this, "Lista:\n-----------------------------------");
+                    notificarUsuario(this, "USERS ONLINE:");
                     notificarUsuario(this, lista);
+                    notificarUsuario(this, "-----------------------------------");
 
                 }else if (args.get(0).equals("DISCONNECT")){
-                    System.out.println("["+ this.username + "]: desconectado");
-                    topics.remove(this.username);
+                    Topic topic = topics.stream()
+                            .filter(current -> "BroadCast".equals(current.getTopicTitle()))
+                            .findAny()
+                            .orElse(null);
+                    if (topic != null) {
+                        System.out.println("["+this.username+"] HAS DISCONNECTED");
+                        topic.Publish("["+this.username+"] HAS DISCONNECTED" , this);
+                    }
                     this.cliente1.close();
-
-                }
-                else if (args.get(0).isEmpty())
-                {
-                    System.out.println("Comando vacio");
-                    notificarUsuario(this, "Comando vacio");
+                    clientesConectados.remove(this);
+                    topics.remove(this.username);
                 }
                 else
                 {
@@ -148,7 +152,7 @@ public class Conexion extends Thread {
     {
         try 
         {
-            buffSalida.writeUTF(mensaje);
+            buffSalida.writeUTF("\n"+mensaje+"\n");
         } 
         catch (Exception e) {};
     }

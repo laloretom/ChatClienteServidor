@@ -5,7 +5,7 @@ public class Servidor extends Mediator {
      }
 
     public static void main(String[] args) {
-        Servidor servidor = new Servidor(9000);
+        Servidor servidor = new Servidor(7777);
         servidor.init();
     }
 
